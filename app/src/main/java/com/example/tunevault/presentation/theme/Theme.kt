@@ -1,6 +1,5 @@
-package com.example.tunevault.ui.theme
+package com.example.tunevault.presentation.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

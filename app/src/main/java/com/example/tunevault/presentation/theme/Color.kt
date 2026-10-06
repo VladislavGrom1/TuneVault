@@ -1,4 +1,4 @@
-package com.example.tunevault.ui.theme
+package com.example.tunevault.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
