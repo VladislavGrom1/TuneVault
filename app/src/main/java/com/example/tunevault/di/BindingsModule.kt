@@ -1,6 +1,8 @@
 package com.example.tunevault.di
 
-import com.example.tunevault.data.local_source_impl.TokenLocalDataSourceImpl
+import com.example.tunevault.data.local_source.TokenLocalDataSourceImpl
+import com.example.tunevault.data.remote_source.TokenRemoteDataSource
+import com.example.tunevault.data.remote_source.TokenRemoteDataSourceImpl
 import com.example.tunevault.data.repository_impl.AuthRepositoryImpl
 import com.example.tunevault.domain.local_source.TokenLocalDataSource
 import com.example.tunevault.domain.repository.AuthRepository
@@ -19,6 +21,12 @@ abstract class BindingsModule {
     abstract fun bindTokenLocalDataSource(
         impl: TokenLocalDataSourceImpl
     ) : TokenLocalDataSource
+
+    @Binds
+    @Singleton
+    abstract fun bindTokenRemoteDataSource(
+        impl: TokenRemoteDataSourceImpl
+    ) : TokenRemoteDataSource
 
     @Binds
     @Singleton

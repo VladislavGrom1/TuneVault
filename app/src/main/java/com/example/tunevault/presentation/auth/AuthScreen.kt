@@ -1,5 +1,6 @@
-package com.example.tunevault.presentation.home
+package com.example.tunevault.presentation.auth
 
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -11,24 +12,25 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tunevault.presentation.theme.TuneVaultTheme
+import androidx.core.net.toUri
 
 @Composable
-fun HomeScreen(
-    viewModel: HomeViewModel = hiltViewModel()
+fun AuthScreen(
+    viewModel: AuthViewModel
 ) {
-    val state by viewModel.homeState.collectAsStateWithLifecycle()
+    val state by viewModel.authState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     TuneVaultTheme {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -40,35 +42,26 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Тест DataStore + Tink",
+                    text = "Авторизация",
                     style = MaterialTheme.typography.headlineSmall
                 )
 
                 Button(
-                    onClick = { viewModel.saveTestToken() },
-                    modifier = Modifier.fillMaxWidth()
+                    onClick = {
+                        val url = viewModel.onLoginClick()
+                        CustomTabsIntent.Builder()
+                            .setShowTitle(true)
+                            .build()
+                            .launchUrl(context, url.toUri())
+                    }
                 ) {
-                    Text("Сохранить тестовый токен")
-                }
-
-                Button(
-                    onClick = { viewModel.loadToken() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Загрузить токен")
-                }
-
-                OutlinedButton(
-                    onClick = { viewModel.clearToken() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Очистить хранилище")
+                    Text("Войти")
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 when (val currentState = state) {
-                    is HomeState.Initial -> {
+                    is AuthState.Initial -> {
                         Text(
                             text = "Initial",
                             style = MaterialTheme.typography.bodyMedium,
@@ -76,7 +69,7 @@ fun HomeScreen(
                         )
                     }
 
-                    is HomeState.Loading -> {
+                    is AuthState.Loading -> {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -87,11 +80,11 @@ fun HomeScreen(
                         }
                     }
 
-                    is HomeState.Loaded -> {
-                        Content(homeState = currentState)
+                    is AuthState.Authenticated -> {
+                        Content(authState = currentState)
                     }
 
-                    is HomeState.Error -> {
+                    is AuthState.Error -> {
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = currentState.error,
@@ -108,7 +101,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun Content(homeState: HomeState.Loaded) {
+private fun Content(authState: AuthState.Authenticated) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -116,22 +109,16 @@ private fun Content(homeState: HomeState.Loaded) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (homeState.savedToken != null) {
-                Text(
-                    text = "Токен в хранилище:",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = homeState.savedToken,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace
-                )
-            } else {
-                Text(
-                    text = "Токен не найден",
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
+            Text(
+                text = authState.accessToken,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = authState.refreshToken,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace
+            )
         }
     }
 }

@@ -1,14 +1,12 @@
 package com.example.tunevault.data.mappers
 
 import com.example.tunevault.domain.model.AuthToken
-import com.example.tunevault.domain.remote_source.TokenResponseDto
+import com.example.tunevault.data.dto.TokenResponseDto
 
-class TokenMapper {
-    fun TokenResponseDto.toDomain(): AuthToken = AuthToken(
-        accessToken = accessToken,
-        refreshToken = refreshToken,
-        expiresAt = System.currentTimeMillis() + expiresIn * 1000L,
-        scope = scope,
-        tokenType = tokenType
-    )
-}
+fun TokenResponseDto.toDomain(): AuthToken = AuthToken(
+    accessToken = accessToken,
+    refreshToken = refreshToken,
+    expiresAt = System.currentTimeMillis() + expiresIn * 1000L,
+    scope = scope,
+    tokenType = tokenType
+)

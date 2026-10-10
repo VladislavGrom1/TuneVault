@@ -1,4 +1,4 @@
-package com.example.tunevault.data.local_source_impl
+package com.example.tunevault.data.local_source
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences

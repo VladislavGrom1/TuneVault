@@ -1,4 +1,4 @@
-package com.example.tunevault.domain.remote_source
+package com.example.tunevault.data.dto
 
 import com.google.gson.annotations.SerializedName
 
