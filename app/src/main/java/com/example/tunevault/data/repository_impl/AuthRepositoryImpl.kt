@@ -39,7 +39,27 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun refreshToken(): AuthResult {
-        TODO("Not yet implemented")
+        return try {
+            val currentToken = tokenLocalDataSource.getToken() ?: return AuthResult.Failure(
+                AuthError.RefreshTokenRevoked)
+            val newToken = tokenRemoteDataSource.refreshToken(currentToken.refreshToken)
+            tokenLocalDataSource.saveToken(newToken)
+            AuthResult.Success(newToken)
+        } catch (e: IOException) {
+            AuthResult.Failure(AuthError.Network)
+        } catch (e: HttpException){
+            val error = when (e.code()) {
+                400, 401 -> AuthError.RefreshTokenRevoked
+                403 -> AuthError.AccessDenied
+                else -> AuthError.Unknown(e.message())
+            }
+            if (error == AuthError.RefreshTokenRevoked) {
+                tokenLocalDataSource.clear()
+            }
+            AuthResult.Failure(error)
+        } catch (e: Exception){
+            AuthResult.Failure(AuthError.Unknown(e.message ?: "Unknown"))
+        }
     }
 
     override suspend fun getToken(): AuthToken? {

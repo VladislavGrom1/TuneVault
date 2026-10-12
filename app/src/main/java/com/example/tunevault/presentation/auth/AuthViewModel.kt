@@ -35,7 +35,6 @@ class AuthViewModel @Inject constructor(
             _authState.value = AuthState.Error("Ошибка при редиректе")
             return
         }
-        println("Code: $redirect")
 
         val code = redirect.code
         if (code.isNullOrBlank()) {
@@ -45,6 +44,23 @@ class AuthViewModel @Inject constructor(
 
         viewModelScope.launch {
             when (val result = authRepository.exchangeCode(redirect.code)) {
+                is AuthResult.Success -> {
+                    _authState.value = AuthState.Authenticated(
+                        accessToken = result.token.accessToken,
+                        refreshToken = result.token.refreshToken
+                    )
+                }
+                is AuthResult.Failure -> {
+                    _authState.value = AuthState.Error(mapErrorToMessage(result.error))
+                }
+            }
+        }
+    }
+
+    fun refreshToken() {
+        _authState.value = AuthState.Loading
+        viewModelScope.launch {
+            when (val result = authRepository.refreshToken()) {
                 is AuthResult.Success -> {
                     _authState.value = AuthState.Authenticated(
                         accessToken = result.token.accessToken,

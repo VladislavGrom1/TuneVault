@@ -27,6 +27,7 @@ import androidx.core.net.toUri
 
 @Composable
 fun AuthScreen(
+    onNavigateHome: () -> Unit,
     viewModel: AuthViewModel
 ) {
     val state by viewModel.authState.collectAsStateWithLifecycle()
@@ -39,7 +40,8 @@ fun AuthScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = "Авторизация",
@@ -59,6 +61,14 @@ fun AuthScreen(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = {
+                        viewModel.refreshToken()
+                    }
+                ) {
+                    Text("Обновить токен")
+                }
 
                 when (val currentState = state) {
                     is AuthState.Initial -> {
@@ -82,6 +92,7 @@ fun AuthScreen(
 
                     is AuthState.Authenticated -> {
                         Content(authState = currentState)
+                        onNavigateHome()
                     }
 
                     is AuthState.Error -> {
