@@ -7,9 +7,9 @@ import androidx.core.net.toUri
 import com.example.tunevault.BuildConfig
 import java.security.SecureRandom
 
-class AuthManager @Inject constructor() {
-    private val clientId: String = BuildConfig.JAMENDO_CLIENT_ID
-    private val redirectUri: String = BuildConfig.JAMENDO_REDIRECT_URI
+class AuthManager @Inject constructor(
+    private val oauthConfig: OAuthConfig
+) {
     private var pendingState: String? = null
 
     fun buildAuthUrl(): String {
@@ -17,8 +17,8 @@ class AuthManager @Inject constructor() {
         pendingState = state
         return "https://api.jamendo.com/v3.0/oauth/authorize".toUri()
             .buildUpon()
-            .appendQueryParameter("client_id", clientId)
-            .appendQueryParameter("redirect_uri", redirectUri)
+            .appendQueryParameter("client_id", oauthConfig.clientId)
+            .appendQueryParameter("redirect_uri", oauthConfig.redirectUri)
             .appendQueryParameter("scope", "music")
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("state", state)
