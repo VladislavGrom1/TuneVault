@@ -1,6 +1,6 @@
 package com.example.tunevault.data.oath
 
-import com.example.tunevault.domain.local_source.TokenLocalDataSource
+import com.example.tunevault.data.local_source.TokenLocalDataSource
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response

@@ -1,4 +1,4 @@
-package com.example.tunevault.domain.local_source
+package com.example.tunevault.data.local_source
 import com.example.tunevault.domain.model.AuthToken
 
 interface TokenLocalDataSource {

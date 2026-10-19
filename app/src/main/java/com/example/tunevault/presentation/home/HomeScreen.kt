@@ -21,8 +21,8 @@ import com.example.tunevault.presentation.theme.TuneVaultTheme
 
 @Composable
 fun HomeScreen(
-    onNavigateAuth: () -> Unit,
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    onNavigateAuth: () -> Unit
 ) {
     val homeState by viewModel.homeState.collectAsStateWithLifecycle()
 
@@ -49,27 +49,25 @@ fun HomeScreen(
 fun Content(
     logout: () -> Unit
 ) {
-    TuneVaultTheme() {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Главный экран",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Button(
-                    onClick = {
-                        logout()
-                    }
-                ) {
-                    Text("Выйти")
+    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Главный экран",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Button(
+                onClick = {
+                    logout()
                 }
+            ) {
+                Text("Выйти")
             }
         }
     }

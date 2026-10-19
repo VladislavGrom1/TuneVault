@@ -3,9 +3,11 @@ package com.example.tunevault.di
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.dataStoreFile
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferencesFileSerializer
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.tink.AeadSerializer
 import com.google.crypto.tink.Aead
 import com.google.crypto.tink.KeyTemplates
@@ -51,6 +53,7 @@ object EncryptedStorage {
 
         return DataStoreFactory.create(
             serializer = aeadSerializer,
+            corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
             produceFile = {context.dataStoreFile(DATA_STORE_FILE)}
         )
     }

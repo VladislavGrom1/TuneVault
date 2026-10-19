@@ -9,10 +9,20 @@ import retrofit2.http.POST
 interface TokenService {
     @FormUrlEncoded
     @POST("oauth/grant")
-    fun refreshTokenSync(
+    suspend fun exchangeCode(
+        @Field("client_id") clientId: String,
+        @Field("client_secret") clientSecret: String,
+        @Field("grant_type") grantType: String = "authorization_code",
+        @Field("code") code: String,
+        @Field("redirect_uri") redirectUri: String
+    ): TokenResponseDto
+
+    @FormUrlEncoded
+    @POST("oauth/grant")
+    suspend fun refreshToken(
         @Field("client_id") clientId: String,
         @Field("client_secret") clientSecret: String,
         @Field("grant_type") grantType: String = "refresh_token",
         @Field("refresh_token") refreshToken: String
-    ): Call<TokenResponseDto>
+    ): TokenResponseDto
 }

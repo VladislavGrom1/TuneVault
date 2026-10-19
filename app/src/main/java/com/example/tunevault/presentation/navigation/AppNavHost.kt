@@ -21,9 +21,7 @@ object Routes {
 }
 
 @Composable
-fun AppNavHost(
-    authCallbackFlow: SharedFlow<Uri>
-) {
+fun AppNavHost() {
     val navController = rememberNavController()
 
     NavHost(
@@ -52,14 +50,7 @@ fun AppNavHost(
                         popUpTo(Routes.AUTH_SCREEN) {inclusive = true}
                     }
                 },
-                viewModel = viewModel
             )
-            LaunchedEffect(Unit) {
-                authCallbackFlow.collect { uri ->
-                    Log.d("OAuth", "AppNavHost получил uri: $uri")
-                    viewModel.onAuthCodeReceived(uri)
-                }
-            }
         }
         composable(Routes.HOME_SCREEN){
             HomeScreen(

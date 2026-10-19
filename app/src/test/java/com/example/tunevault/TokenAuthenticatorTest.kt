@@ -4,7 +4,7 @@ import com.example.tunevault.data.dto.TokenResponseDto
 import com.example.tunevault.data.oath.OAuthConfig
 import com.example.tunevault.data.oath.TokenAuthenticator
 import com.example.tunevault.data.remote_source.api.TokenService
-import com.example.tunevault.domain.local_source.TokenLocalDataSource
+import com.example.tunevault.data.local_source.TokenLocalDataSource
 import com.example.tunevault.domain.model.AuthToken
 import io.mockk.coEvery
 import io.mockk.coVerify

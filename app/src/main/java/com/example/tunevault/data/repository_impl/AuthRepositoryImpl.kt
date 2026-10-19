@@ -1,7 +1,8 @@
 package com.example.tunevault.data.repository_impl
 
+import com.example.tunevault.data.oath.TokenRefresher
 import com.example.tunevault.data.remote_source.TokenRemoteDataSource
-import com.example.tunevault.domain.local_source.TokenLocalDataSource
+import com.example.tunevault.data.local_source.TokenLocalDataSource
 import com.example.tunevault.domain.model.AuthError
 import com.example.tunevault.domain.model.AuthResult
 import com.example.tunevault.domain.model.AuthToken
@@ -9,10 +10,12 @@ import com.example.tunevault.domain.repository.AuthRepository
 import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 class AuthRepositoryImpl @Inject constructor(
     private val tokenLocalDataSource: TokenLocalDataSource,
-    private val tokenRemoteDataSource: TokenRemoteDataSource
+    private val tokenRemoteDataSource: TokenRemoteDataSource,
+    private val tokenRefresher: TokenRefresher
 ) : AuthRepository {
 
     override suspend fun exchangeCode(code: String): AuthResult {
@@ -20,6 +23,8 @@ class AuthRepositoryImpl @Inject constructor(
             val token = tokenRemoteDataSource.exchangeCode(code)
             tokenLocalDataSource.saveToken(token)
             AuthResult.Success(token)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: IOException) {
             AuthResult.Failure(AuthError.Network)
         } catch (e: HttpException) {
@@ -39,27 +44,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun refreshToken(): AuthResult {
-        return try {
-            val currentToken = tokenLocalDataSource.getToken() ?: return AuthResult.Failure(
-                AuthError.RefreshTokenRevoked)
-            val newToken = tokenRemoteDataSource.refreshToken(currentToken.refreshToken)
-            tokenLocalDataSource.saveToken(newToken)
-            AuthResult.Success(newToken)
-        } catch (e: IOException) {
-            AuthResult.Failure(AuthError.Network)
-        } catch (e: HttpException){
-            val error = when (e.code()) {
-                400, 401 -> AuthError.RefreshTokenRevoked
-                403 -> AuthError.AccessDenied
-                else -> AuthError.Unknown(e.message())
-            }
-            if (error == AuthError.RefreshTokenRevoked) {
-                tokenLocalDataSource.clear()
-            }
-            AuthResult.Failure(error)
-        } catch (e: Exception){
-            AuthResult.Failure(AuthError.Unknown(e.message ?: "Unknown"))
-        }
+        return tokenRefresher.refresh()
     }
 
     override suspend fun getToken(): AuthToken? {

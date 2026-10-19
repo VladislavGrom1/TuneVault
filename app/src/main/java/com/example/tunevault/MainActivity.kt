@@ -7,40 +7,37 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.example.tunevault.data.oath.AuthRedirectBus
 import com.example.tunevault.presentation.navigation.AppNavHost
+import com.example.tunevault.presentation.theme.TuneVaultTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private val authCallbackFlow = MutableSharedFlow<Uri>(extraBufferCapacity = 1)
+    @Inject lateinit var redirectBus: AuthRedirectBus
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        handleIntent(intent)
         enableEdgeToEdge()
+        if (savedInstanceState == null) handleIntent(intent)
         setContent {
-            AppNavHost(authCallbackFlow = authCallbackFlow)
+            TuneVaultTheme() {
+                AppNavHost()
+            }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        Log.d("OAuth", "onNewIntent called")
-        setIntent(intent)
         handleIntent(intent)
-        intent.data = null
     }
 
     private fun handleIntent(intent: Intent?) {
-        val data = intent?.data ?: run {
-            Log.d("OAuth", "handleIntent: data = null")
-            return
-        }
-        Log.d("OAuth", "handleIntent: data = $data")
+        val data = intent?.data ?: return
         if (data.scheme == "com.tunevault.app" && data.host == "oauth") {
-            Log.d("OAuth", "OAuth callback detected: code=${data.getQueryParameter("code")}")
-            authCallbackFlow.tryEmit(data)
+            redirectBus.post(data)
         }
     }
 }

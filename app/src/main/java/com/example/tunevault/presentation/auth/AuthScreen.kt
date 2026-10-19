@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,86 +25,86 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tunevault.presentation.theme.TuneVaultTheme
 import androidx.core.net.toUri
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 
 @Composable
 fun AuthScreen(
-    onNavigateHome: () -> Unit,
-    viewModel: AuthViewModel
+    viewModel: AuthViewModel = hiltViewModel(),
+    onNavigateHome: () -> Unit
 ) {
     val state by viewModel.authState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    TuneVaultTheme {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+    LaunchedEffect(state) {
+        if (state is AuthState.Authenticated) onNavigateHome()
+    }
+
+    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Авторизация",
+                style = MaterialTheme.typography.headlineSmall
+            )
+
+            Button(
+                onClick = {
+                    val url = viewModel.onLoginClick()
+                    CustomTabsIntent.Builder()
+                        .setShowTitle(true)
+                        .build()
+                        .launchUrl(context, url.toUri())
+                }
             ) {
-                Text(
-                    text = "Авторизация",
-                    style = MaterialTheme.typography.headlineSmall
-                )
+                Text("Войти")
+            }
 
-                Button(
-                    onClick = {
-                        val url = viewModel.onLoginClick()
-                        CustomTabsIntent.Builder()
-                            .setShowTitle(true)
-                            .build()
-                            .launchUrl(context, url.toUri())
-                    }
-                ) {
-                    Text("Войти")
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    viewModel.refreshToken()
+                }
+            ) {
+                Text("Обновить токен")
+            }
+
+            when (val currentState = state) {
+                is AuthState.Initial -> {
+                    Text(
+                        text = "Initial",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = {
-                        viewModel.refreshToken()
+                is AuthState.Loading -> {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Загрузка...")
                     }
-                ) {
-                    Text("Обновить токен")
                 }
 
-                when (val currentState = state) {
-                    is AuthState.Initial -> {
+                is AuthState.Authenticated -> Content(authState = currentState)
+
+                is AuthState.Error -> {
+                    Card(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "Initial",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = currentState.error,
+                            modifier = Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium
                         )
-                    }
-
-                    is AuthState.Loading -> {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            CircularProgressIndicator()
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Загрузка...")
-                        }
-                    }
-
-                    is AuthState.Authenticated -> {
-                        Content(authState = currentState)
-                        onNavigateHome()
-                    }
-
-                    is AuthState.Error -> {
-                        Card(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = currentState.error,
-                                modifier = Modifier.padding(16.dp),
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
                     }
                 }
             }

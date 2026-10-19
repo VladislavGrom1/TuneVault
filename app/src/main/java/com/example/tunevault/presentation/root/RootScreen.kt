@@ -16,9 +16,9 @@ import com.example.tunevault.presentation.theme.TuneVaultTheme
 
 @Composable
 fun RootScreen(
+    viewModel: RootViewModel = hiltViewModel(),
     onNavigateToAuth: () -> Unit,
-    onNavigateToHome: () -> Unit,
-    viewModel: RootViewModel = hiltViewModel()
+    onNavigateToHome: () -> Unit
 ){
     val state by viewModel.rootState.collectAsStateWithLifecycle()
 
@@ -30,18 +30,16 @@ fun RootScreen(
         }
     }
 
-    TuneVaultTheme{
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                when(state) {
-                    is RootState.Loading -> CircularProgressIndicator()
-                    else -> Unit
-                }
+    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            when(state) {
+                is RootState.Loading -> CircularProgressIndicator()
+                else -> Unit
             }
         }
     }
