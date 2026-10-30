@@ -3,6 +3,7 @@ package com.example.tunevault.presentation.auth
 sealed interface AuthState{
     data object Initial : AuthState
     data object Loading : AuthState
+    data object AwaitingRedirect: AuthState
     data class Authenticated(
         val accessToken: String,
         val refreshToken: String

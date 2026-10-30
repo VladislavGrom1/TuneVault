@@ -5,27 +5,27 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.tunevault.presentation.theme.TuneVaultTheme
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 
 @Composable
 fun AuthScreen(
@@ -34,103 +34,106 @@ fun AuthScreen(
 ) {
     val state by viewModel.authState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val processLifecycleOwner = ProcessLifecycleOwner.get()
 
     LaunchedEffect(state) {
         if (state is AuthState.Authenticated) onNavigateHome()
     }
 
+    DisposableEffect(processLifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onAppReturnedToForeground()
+            }
+        }
+        processLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { processLifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val onLoginClick: () -> Unit = {
+        val url = viewModel.onLoginClick()
+        CustomTabsIntent.Builder()
+            .setShowTitle(true)
+            .build()
+            .launchUrl(context, url.toUri())
+    }
+
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(12.dp)
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "Авторизация",
-                style = MaterialTheme.typography.headlineSmall
-            )
-
-            Button(
-                onClick = {
-                    val url = viewModel.onLoginClick()
-                    CustomTabsIntent.Builder()
-                        .setShowTitle(true)
-                        .build()
-                        .launchUrl(context, url.toUri())
-                }
-            ) {
-                Text("Войти")
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    viewModel.refreshToken()
-                }
-            ) {
-                Text("Обновить токен")
-            }
-
             when (val currentState = state) {
-                is AuthState.Initial -> {
-                    Text(
-                        text = "Initial",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                is AuthState.Loading -> {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Загрузка...")
-                    }
-                }
-
-                is AuthState.Authenticated -> Content(authState = currentState)
-
-                is AuthState.Error -> {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = currentState.error,
-                            modifier = Modifier.padding(16.dp),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
+                is AuthState.Initial -> InitialContent(
+                    onLoginClick = onLoginClick
+                )
+                is AuthState.AwaitingRedirect -> AwaitingRedirectContent()
+                is AuthState.Loading -> LoadingContent()
+                is AuthState.Authenticated -> Unit
+                is AuthState.Error -> ErrorContent(
+                    state = currentState,
+                    onLoginClick = onLoginClick
+                )
             }
         }
     }
 }
 
 @Composable
-private fun Content(authState: AuthState.Authenticated) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = authState.accessToken,
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace
-            )
-            Text(
-                text = authState.refreshToken,
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace
-            )
-        }
+private fun InitialContent(
+    onLoginClick: () -> Unit
+) {
+    Text(
+        text = "Авторизация",
+        style = MaterialTheme.typography.headlineSmall
+    )
+    Spacer(modifier = Modifier.height(10.dp))
+    Button(
+        onClick = onLoginClick
+    ) {
+        Text("Войти")
+    }
+}
+
+@Composable
+private fun AwaitingRedirectContent() {
+    CircularProgressIndicator()
+    Spacer(modifier = Modifier.height(10.dp))
+    Text(
+        text = "Ожидание входа в браузере",
+        style = MaterialTheme.typography.bodyMedium
+    )
+}
+
+@Composable
+private fun LoadingContent() {
+    CircularProgressIndicator()
+    Spacer(modifier = Modifier.height(10.dp))
+    Text(
+        text = "Завершение входа",
+        style = MaterialTheme.typography.bodyMedium
+    )
+}
+
+@Composable
+private fun ErrorContent(
+    state: AuthState.Error,
+    onLoginClick: () -> Unit
+) {
+    Text(
+        text = state.error,
+        modifier = Modifier.padding(16.dp),
+        color = MaterialTheme.colorScheme.error,
+        style = MaterialTheme.typography.bodyMedium
+    )
+    Spacer(modifier = Modifier.height(10.dp))
+    Button(
+        onClick = onLoginClick
+    ) {
+        Text("Повторить")
     }
 }

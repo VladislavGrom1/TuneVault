@@ -40,7 +40,7 @@ class AuthViewModel @Inject constructor(
     fun onLoginClick(): String{
         val state = authManager.generateState()
         savedStateHandle[KEY_PENDING_STATE] = state
-        _authState.value = AuthState.Loading
+        _authState.value = AuthState.AwaitingRedirect
         return authManager.buildAuthUrl(state)
     }
 
@@ -75,6 +75,12 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _authState.value = authRepository.refreshToken().toState()
         }
+    }
+
+    fun onAppReturnedToForeground() {
+        val pending = savedStateHandle.get<String>(KEY_PENDING_STATE) ?: return
+        savedStateHandle.remove<String>(KEY_PENDING_STATE)
+        _authState.value = AuthState.Error("Вход не выполнен")
     }
 
     private fun AuthResult.toState(): AuthState = when (this) {

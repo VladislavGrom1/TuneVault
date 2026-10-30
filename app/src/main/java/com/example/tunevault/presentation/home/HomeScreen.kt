@@ -2,7 +2,9 @@ package com.example.tunevault.presentation.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -17,58 +19,58 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.tunevault.presentation.theme.TuneVaultTheme
 
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     onNavigateAuth: () -> Unit
 ) {
-    val homeState by viewModel.homeState.collectAsStateWithLifecycle()
+    val state by viewModel.homeState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(homeState) {
-        if(homeState is HomeState.LoggedOut){
-            onNavigateAuth()
-        }
+    LaunchedEffect(state) {
+        if(state is HomeState.LoggedOut) onNavigateAuth()
     }
 
-    when(homeState) {
-        is HomeState.Initial -> Content(
-            logout = { viewModel.logout() }
-        )
-        is HomeState.Loading -> CircularProgressIndicator()
-        is HomeState.LoggedOut -> Unit
-        is HomeState.Error -> Text(
-            text = (homeState as HomeState.Error).message,
-            color = MaterialTheme.colorScheme.error
-        )
+    val logout: () -> Unit = {
+        viewModel.logout()
+    }
+
+    Scaffold(modifier = Modifier.fillMaxSize()) {innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .padding(12.dp)
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            when(val currentState = state) {
+                is HomeState.Initial -> InitialContent(logout = logout)
+                is HomeState.Loading -> LoadingContent()
+                is HomeState.LoggedOut -> Unit
+                is HomeState.Error -> Unit
+            }
+        }
     }
 }
 
 @Composable
-fun Content(
+fun InitialContent(
     logout: () -> Unit
 ) {
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Главный экран",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Button(
-                onClick = {
-                    logout()
-                }
-            ) {
-                Text("Выйти")
-            }
-        }
+    Text(
+        text = "Главный экран",
+        style = MaterialTheme.typography.headlineSmall
+    )
+    Spacer(modifier = Modifier.height(10.dp))
+    Button(
+        onClick = logout
+    ) {
+        Text("Выйти")
     }
+}
+
+@Composable
+fun LoadingContent(){
+    CircularProgressIndicator()
 }
