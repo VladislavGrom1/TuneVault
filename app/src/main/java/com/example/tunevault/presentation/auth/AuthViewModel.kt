@@ -1,91 +1,90 @@
 package com.example.tunevault.presentation.auth
 
-import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.tunevault.data.oath.AuthManager
-import com.example.tunevault.data.oath.AuthRedirectBus
+import com.example.tunevault.domain.auth.AuthRedirect
+import com.example.tunevault.domain.auth.AuthRedirectSource
+import com.example.tunevault.domain.auth.OAuthUrlProvider
 import com.example.tunevault.domain.model.AuthError
 import com.example.tunevault.domain.model.AuthResult
-import com.example.tunevault.domain.repository.AuthRepository
+import com.example.tunevault.domain.session.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authManager: AuthManager,
-    private val authRepository: AuthRepository,
-    redirectBus: AuthRedirectBus,
-    private val savedStateHandle: SavedStateHandle
+    private val sessionRepository: SessionRepository,
+    private val oauthUrlProvider: OAuthUrlProvider,
+    private val authRedirectSource: AuthRedirectSource,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
-    val authState: StateFlow<AuthState> = _authState.asStateFlow()
+    private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
+    val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+
+    private val _events = Channel<AuthEvent>(Channel.BUFFERED)
+    val events: Flow<AuthEvent> = _events.receiveAsFlow()
 
     init {
         viewModelScope.launch {
-            redirectBus.redirects.collect { onAuthRedirect(it) }
+            authRedirectSource.redirects.collect(::handleRedirect)
         }
     }
 
-    private companion object {
-        const val KEY_PENDING_STATE = "pending_state"
-    }
+    fun onLoginClicked() {
+        when (_uiState.value) {
+            is AuthUiState.AwaitingBrowser, is AuthUiState.Verifying -> return
+            else -> Unit
+        }
 
-    fun onLoginClick(): String{
-        val state = authManager.generateState()
+        val state = oauthUrlProvider.generateState()
         savedStateHandle[KEY_PENDING_STATE] = state
-        _authState.value = AuthState.AwaitingRedirect
-        return authManager.buildAuthUrl(state)
+        _uiState.value = AuthUiState.AwaitingBrowser
+        _events.trySend(AuthEvent.OpenBrowser(oauthUrlProvider.buildAuthorizationUrl(state)))
     }
 
-    private fun onAuthRedirect(uri: Uri) {
-        val redirect = authManager.parseRedirect(uri)
-        val expectedState = savedStateHandle.remove<String>(KEY_PENDING_STATE)
+    fun onLoginCancelled() {
+        savedStateHandle.remove<String>(KEY_PENDING_STATE)
+        _uiState.value = AuthUiState.Idle
+    }
 
-        if (expectedState == null || redirect.state != expectedState) {
-            _authState.value = AuthState.Error(mapErrorToMessage(AuthError.StateMismatch))
+    private suspend fun handleRedirect(redirect: AuthRedirect) {
+        // Redirect без начатого входа игнорируем: это может быть запоздавшее событие.
+        val expectedState = savedStateHandle.remove<String>(KEY_PENDING_STATE) ?: return
+
+        if (redirect.state != expectedState) {
+            _uiState.value = AuthUiState.Error(mapErrorToMessage(AuthError.StateMismatch))
             return
         }
 
         if (redirect.error != null) {
-            _authState.value = AuthState.Error(mapErrorToMessage(AuthError.AccessDenied))
+            _uiState.value = AuthUiState.Error(mapErrorToMessage(AuthError.AccessDenied))
             return
         }
 
         val code = redirect.code
         if (code.isNullOrBlank()) {
-            _authState.value = AuthState.Error("Код авторизации пустой")
+            _uiState.value = AuthUiState.Error("Код авторизации пустой")
             return
         }
 
-        _authState.value = AuthState.Loading
-        viewModelScope.launch {
-            _authState.value = authRepository.exchangeCode(code).toState()
+        _uiState.value = AuthUiState.Verifying
+
+        // Успех навигации обрабатывает AppNavHost через SessionState.Authenticated.
+        when (val result = sessionRepository.login(code)) {
+            is AuthResult.Success -> Unit
+            is AuthResult.Failure -> {
+                _uiState.value = AuthUiState.Error(mapErrorToMessage(result.error))
+            }
         }
-    }
-
-    fun refreshToken() {
-        _authState.value = AuthState.Loading
-        viewModelScope.launch {
-            _authState.value = authRepository.refreshToken().toState()
-        }
-    }
-
-    fun onAppReturnedToForeground() {
-        val pending = savedStateHandle.get<String>(KEY_PENDING_STATE) ?: return
-        savedStateHandle.remove<String>(KEY_PENDING_STATE)
-        _authState.value = AuthState.Error("Вход не выполнен")
-    }
-
-    private fun AuthResult.toState(): AuthState = when (this) {
-        is AuthResult.Success -> AuthState.Authenticated(token.accessToken, token.refreshToken)
-        is AuthResult.Failure -> AuthState.Error(mapErrorToMessage(error))
     }
 
     private fun mapErrorToMessage(error: AuthError): String = when (error) {
@@ -96,5 +95,9 @@ class AuthViewModel @Inject constructor(
         AuthError.RefreshTokenRevoked -> "Доступ отозван, войдите заново"
         AuthError.Network -> "Нет подключения к интернету"
         is AuthError.Unknown -> "Ошибка: ${error.message}"
+    }
+
+    private companion object {
+        const val KEY_PENDING_STATE = "pending_state"
     }
 }

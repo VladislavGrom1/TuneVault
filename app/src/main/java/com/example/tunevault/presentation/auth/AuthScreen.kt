@@ -1,5 +1,8 @@
 package com.example.tunevault.presentation.auth
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,71 +15,57 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun AuthScreen(
     viewModel: AuthViewModel = hiltViewModel(),
-    onNavigateHome: () -> Unit
 ) {
-    val state by viewModel.authState.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val processLifecycleOwner = ProcessLifecycleOwner.get()
 
-    LaunchedEffect(state) {
-        if (state is AuthState.Authenticated) onNavigateHome()
-    }
-
-    DisposableEffect(processLifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onAppReturnedToForeground()
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is AuthEvent.OpenBrowser -> context.launchCustomTab(event.url)
             }
         }
-        processLifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { processLifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    val onLoginClick: () -> Unit = {
-        val url = viewModel.onLoginClick()
-        CustomTabsIntent.Builder()
-            .setShowTitle(true)
-            .build()
-            .launchUrl(context, url.toUri())
     }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
-                .padding(12.dp)
+                .padding(16.dp)
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Center,
         ) {
-            when (val currentState = state) {
-                is AuthState.Initial -> InitialContent(
-                    onLoginClick = onLoginClick
+            when (val state = uiState) {
+                is AuthUiState.Idle -> LoginContent(
+                    onLoginClick = viewModel::onLoginClicked,
                 )
-                is AuthState.AwaitingRedirect -> AwaitingRedirectContent()
-                is AuthState.Loading -> LoadingContent()
-                is AuthState.Authenticated -> Unit
-                is AuthState.Error -> ErrorContent(
-                    state = currentState,
-                    onLoginClick = onLoginClick
+
+                is AuthUiState.AwaitingBrowser -> AwaitingBrowserContent(
+                    onCancelClick = viewModel::onLoginCancelled,
+                )
+
+                is AuthUiState.Verifying -> VerifyingContent()
+
+                is AuthUiState.Error -> ErrorContent(
+                    message = state.error,
+                    onRetryClick = viewModel::onLoginClicked,
                 )
             }
         }
@@ -84,56 +73,66 @@ fun AuthScreen(
 }
 
 @Composable
-private fun InitialContent(
-    onLoginClick: () -> Unit
-) {
+private fun LoginContent(onLoginClick: () -> Unit) {
     Text(
         text = "Авторизация",
-        style = MaterialTheme.typography.headlineSmall
+        style = MaterialTheme.typography.headlineSmall,
     )
-    Spacer(modifier = Modifier.height(10.dp))
-    Button(
-        onClick = onLoginClick
-    ) {
+    Spacer(modifier = Modifier.height(12.dp))
+    Button(onClick = onLoginClick) {
         Text("Войти")
     }
 }
 
 @Composable
-private fun AwaitingRedirectContent() {
+private fun AwaitingBrowserContent(onCancelClick: () -> Unit) {
     CircularProgressIndicator()
-    Spacer(modifier = Modifier.height(10.dp))
+    Spacer(modifier = Modifier.height(12.dp))
     Text(
         text = "Ожидание входа в браузере",
-        style = MaterialTheme.typography.bodyMedium
+        style = MaterialTheme.typography.bodyMedium,
     )
+    Spacer(modifier = Modifier.height(12.dp))
+    TextButton(onClick = onCancelClick) {
+        Text("Отмена")
+    }
 }
 
 @Composable
-private fun LoadingContent() {
+private fun VerifyingContent() {
     CircularProgressIndicator()
-    Spacer(modifier = Modifier.height(10.dp))
+    Spacer(modifier = Modifier.height(12.dp))
     Text(
         text = "Завершение входа",
-        style = MaterialTheme.typography.bodyMedium
+        style = MaterialTheme.typography.bodyMedium,
     )
 }
 
 @Composable
 private fun ErrorContent(
-    state: AuthState.Error,
-    onLoginClick: () -> Unit
+    message: String,
+    onRetryClick: () -> Unit,
 ) {
     Text(
-        text = state.error,
-        modifier = Modifier.padding(16.dp),
+        text = message,
         color = MaterialTheme.colorScheme.error,
-        style = MaterialTheme.typography.bodyMedium
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
     )
-    Spacer(modifier = Modifier.height(10.dp))
-    Button(
-        onClick = onLoginClick
-    ) {
+    Spacer(modifier = Modifier.height(12.dp))
+    Button(onClick = onRetryClick) {
         Text("Повторить")
+    }
+}
+
+private fun Context.launchCustomTab(url: String) {
+    val uri = url.toUri()
+    try {
+        CustomTabsIntent.Builder()
+            .setShowTitle(true)
+            .build()
+            .launchUrl(this, uri)
+    } catch (_: ActivityNotFoundException) {
+        startActivity(Intent(Intent.ACTION_VIEW, uri))
     }
 }

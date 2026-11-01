@@ -2,8 +2,6 @@ package com.example.tunevault.data.remote_source
 
 import com.example.tunevault.BuildConfig
 import com.example.tunevault.data.mappers.toDomain
-import com.example.tunevault.data.oath.TokenRefresher
-import com.example.tunevault.data.remote_source.api.JamendoApi
 import com.example.tunevault.data.remote_source.api.TokenService
 import com.example.tunevault.domain.model.AuthToken
 import javax.inject.Inject

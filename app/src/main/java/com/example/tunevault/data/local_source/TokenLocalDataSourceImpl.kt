@@ -4,6 +4,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import com.example.tunevault.domain.model.AuthToken
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -12,11 +14,11 @@ class TokenLocalDataSourceImpl @Inject constructor(
     private val encryptedDataStore: DataStore<Preferences>
 ) : TokenLocalDataSource {
 
-    override suspend fun getToken() : AuthToken? {
-        return encryptedDataStore.data
-            .map { prefs -> prefs.toAuthToken()}
-            .first()
-    }
+    override val token: Flow<AuthToken?> = encryptedDataStore.data
+        .map { preferences -> preferences.toAuthToken() }
+        .distinctUntilChanged()
+
+    override suspend fun getToken(): AuthToken? = token.first()
 
     override suspend fun saveToken(token: AuthToken) {
         encryptedDataStore.edit { prefs ->
@@ -31,8 +33,6 @@ class TokenLocalDataSourceImpl @Inject constructor(
     override suspend fun clear() {
         encryptedDataStore.edit { it.clear() }
     }
-
-    override suspend fun hasToken(): Boolean = getToken() != null
 
     private fun Preferences.toAuthToken(): AuthToken? {
         val access = this[TokenKeys.ACCESS_TOKEN_KEY] ?: return null

@@ -1,14 +1,15 @@
 package com.example.tunevault.di
 
-import com.example.tunevault.data.oath.AuthInterceptor
-import com.example.tunevault.data.oath.TokenAuthenticator
-import com.example.tunevault.data.remote_source.api.JamendoApi
+import com.example.tunevault.BuildConfig
+import com.example.tunevault.data.oauth.AuthInterceptor
+import com.example.tunevault.data.oauth.TokenAuthenticator
 import com.example.tunevault.data.remote_source.api.TokenService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -27,6 +28,7 @@ object NetworkModule {
     fun provideAuthOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
+        .debugLogging()
         .build()
 
     @Provides
@@ -39,6 +41,7 @@ object NetworkModule {
         .readTimeout(30, TimeUnit.SECONDS)
         .addInterceptor(authInterceptor)
         .authenticator(tokenAuthenticator)
+        .debugLogging()
         .build()
 
     @Provides
@@ -62,12 +65,16 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideJamendoApi(retrofit: Retrofit): JamendoApi =
-        retrofit.create(JamendoApi::class.java)
-
-    @Provides
-    @Singleton
     fun provideTokenService(@Named("AuthRetrofit") retrofit: Retrofit): TokenService =
         retrofit.create(TokenService::class.java)
 
+    private fun OkHttpClient.Builder.debugLogging(): OkHttpClient.Builder = apply {
+        if (BuildConfig.DEBUG) {
+            addInterceptor(
+                HttpLoggingInterceptor().apply {
+                    level = HttpLoggingInterceptor.Level.BASIC
+                }
+            )
+        }
+    }
 }

@@ -1,4 +1,4 @@
-package com.example.tunevault.data.oath
+package com.example.tunevault.data.oauth
 
 import com.example.tunevault.data.remote_source.TokenRemoteDataSource
 import com.example.tunevault.data.local_source.TokenLocalDataSource

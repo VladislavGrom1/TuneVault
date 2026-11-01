@@ -1,4 +1,4 @@
-package com.example.tunevault.data.oath
+package com.example.tunevault.data.oauth
 
 import com.example.tunevault.data.local_source.TokenLocalDataSource
 import kotlinx.coroutines.runBlocking

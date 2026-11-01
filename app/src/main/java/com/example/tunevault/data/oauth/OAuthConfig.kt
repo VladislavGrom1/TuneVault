@@ -1,4 +1,4 @@
-package com.example.tunevault.data.oath
+package com.example.tunevault.data.oauth
 
 import com.example.tunevault.BuildConfig
 import javax.inject.Inject
